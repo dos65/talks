@@ -1,0 +1,193 @@
+<section>
+  <h3>Что внутри?</h3>
+</section>
+
+<section>
+  <h3>Что внутри?</h3>
+  <br/>
+  <p><b>Shapeless!</b></p>
+</section>
+
+<section>
+  <h5>Shapeless features</h5>
+  <br/>
+  <ul>
+    <li>Singletons</li>
+    <li>FieldType/LabeledGeneric</li>
+  </ul>
+</section>
+
+<section>
+  <h5>Singleton</h5>
+  <br/>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    scala> import syntax.singleton._
+    import syntax.singleton._
+
+    scala> 'foo          // non-singleton type
+    res0: Symbol = 'foo
+
+    scala> 'foo.narrow   // singleton type
+    res1: Symbol with shapeless.tag.Tagged[String("foo")] = 'foo
+  </code></pre>
+</section>
+
+<section>
+  <h5>Records</h5>
+  <br/>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    case class Row(a: Int, b: String)
+
+    val row = ("a" ->> 42) :: ("b"  ->> "value") :: HNil  
+  </code></pre>
+</section>
+
+<section>
+  <h5>Records</h5>
+  <br/>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    scala> val rec = ("a" ->> 42) :: ("b"  ->> "value") :: HNil
+    rec: Int with KeyTag[String("a"),Int] ::
+          String with KeyTag[String("b"),String]::
+          shapeless.HNil = 42 :: value :: HNil
+
+    scala> rec("a")
+    res9: Int = 42
+
+    scala> rec("c") // compile-time error
+    error: No field String("c") in record ... 
+  </code></pre>
+</section>
+
+
+<section style="text-align: left;">
+  <h5>Типобезопасность - SQL</h5>
+  <br/>
+  <ul>
+    <li>Принадженость колонки таблице</li>
+    <li>Проверка операций (like for String)</li>
+  </ul>
+</section>
+
+<section style="text-align: left;">
+  <h5>Механика доказательств</h5>
+  <br/>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    select(a, b, c).from(table)
+  </code></pre>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    def select[In](in: In): SelectionPrefix[In]
+
+    class SelectionPrefix[In](in: In) {
+      
+      def from[A](t: Table[A])(implicit
+        proof: SelectionInfer[A, In, Out]
+      ): Selection[A, In, Out]
+    }
+  </code></pre>
+</section>
+
+<section style="text-align: left;">
+  <h5>Механика доказательств</h5>
+  <br/>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    select(a, b, c).from(table)
+  </code></pre>
+  <p>Дано - <i>select(a, b, c)</i></p>
+  <p>From: Есть ли такие колонки? - <i>from(table)</i></p>
+</section>
+
+<section style="text-align: left;">
+  <h5>Механика доказательств</h5>
+  <br/>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    select(a, b, c).from(table).where(a === 42)
+  </code></pre>
+  <p>Дано - <i>select(a, b, c).from(table)</i></p>
+  <p>Where: a это Int? - <i>a === 42</i></p>
+  <p>Where: есть ли колонка a? - <i>where(a === 42)</i></p>
+</section>
+
+<section style="text-align: left;">
+  <h5>Heterogeneous table shape</h5>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    select(a).from(table)
+  </code></pre>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    sealed trait Shape
+    // A - RecordType:
+    //   FieldType[Int with "a"] :: 
+    //   FieldType[String with "b"] :: 
+    //   HNil
+    case class From[A](t: Table[A]) extends Shape
+  </code></pre>
+  <br/>
+</section>
+
+<section style="text-align: left;">
+  <h5>Join</h5>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    sealed trait Shape
+    case class From[A](t: Table(a)) extends Shape
+
+    case class InnerJoin[T1, T2, JoinCond](
+      t1: Table[T1],
+      t2: Table[T2],
+      cond: JoinCond,
+    ) extends Shape
+  </code></pre>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    // InnerJoin[
+    //   From[RecordType1],
+    //   From[RecordType2],
+    //   Eq["a1", "a2"]
+    // ]
+    val joined = table1.innerJoin(table2).on(a1 <==> a2)
+    select(*).from(joined)
+  </code></pre>
+  <br/>
+</section>
+
+<section style="text-align: left;">
+  <h5>Joins</h5>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    sealed trait Shape
+    case class From[A](t: Table(a)) extends Shape
+    case class InnerJoin[T1, T2, JoinCond] ... extends Shape
+    case class LeftJoin[T1, T2, JoinCond] ... extends Shape
+    case class FullJoin[T1, T2, JoinCond] ... extends Shape
+  </code></pre>
+  <br/>
+</section>
+
+<section style="text-align: left;">
+  <h5>Joins</h5>
+  <img class="plain" src="/images/joins.png">
+</section>
+
+<section style="text-align: left;">
+  <h5>Joins</h5>
+  <pre style="box-shadow:none; width:900px"><code class="scala" data-trim data-noescape style="height:auto; box-sizing: none;font-size:22px">
+    // Query0[(Row1, Row2)]
+    select(*).from(table.innerJoin(table2).on(a1 <==> a2))
+    // Query0[(Row1, Option[Row2])]
+    select(*).from(table.leftJoin(table2).on(a1 <==> a2))
+    // Query0[(Option[Row1], Row2)]
+    select(*).from(table.rightJoin(table2).on(a1 <==> a2))
+    // Query0[(Option[Row1], Option[Row2])]
+    select(*).from(table.fullJoin(table2).on(a1 <==> a2))
+  </code></pre>
+</section>
+
+<section style="text-align: left;">
+  <h5>Typed-SQL</h5>
+  <br/>
+  <a href="https://github.com/Hydrospheredata/typed-sql">github.com/Hydrospheredata/typed-sql</a>
+  <br/>
+  <ul>
+    <li><b style="color:green; font-size: larger;">+</b>&nbsp&nbspВыглядит почти как SQL</li>
+    <li><b style="color:green; font-size: larger;">+</b>&nbsp&nbspTypesafe</li>
+    <li><b style="color:red; font-size: larger;">-</b>&nbsp&nbspВыглядит почти как SQL</li>
+    <li><b style="color:red; font-size: larger;">-</b>&nbsp&nbspНевменяемые имплиситы/некрасивые ошибки</li>
+  </ul>
+</section>
